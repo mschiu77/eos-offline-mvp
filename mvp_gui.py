@@ -41,6 +41,20 @@ class OfflineMVPWindow(Gtk.Window):
         grid = Gtk.Grid()
         self.add(grid)
 
+        menubar = Gtk.MenuBar()
+        menubar.set_hexpand(True)
+
+        menu_usb = Gtk.MenuItem(label="USB Disk")
+        menubar.append(menu_usb)
+        submenu = Gtk.Menu()
+        menu_usb.set_submenu(submenu)
+        menu_open = Gtk.MenuItem(label="Open")
+        menu_quit = Gtk.MenuItem(label="Quit")
+        menu_quit.connect('activate', self.on_menu_quit)
+        submenu.append(menu_open)
+        submenu.append(menu_quit)
+
+
         collectBtn = Gtk.Button(label="Collect")
         collectBtn.set_size_request(120, 50)
         collectBtn.connect("clicked", self.on_collect_clicked)
@@ -51,10 +65,12 @@ class OfflineMVPWindow(Gtk.Window):
 
         grid.attach(collectBtn, 0, 0, 1, 1)
         grid.attach(uploadBtn, 1, 0, 1, 1)
+        grid.attach_next_to(menubar, collectBtn, Gtk.PositionType.TOP, 2, 1)
 
         self.set_border_width(10)
         self.set_title("Offline MVP tool")
         self.set_default_size(280, 100)
+        self.set_position(Gtk.WindowPosition.CENTER_ALWAYS)
         self.connect("destroy", self.on_destroy)
 
     def on_destroy(self, widget):
@@ -81,6 +97,10 @@ class OfflineMVPWindow(Gtk.Window):
             self.show_message("Upload Done")
         except:
             self.show_message("Upload Fail. Please check the internet")
+
+    def on_menu_quit(self, widget):
+        subprocess.check_output(['/usr/bin/systemctl', 'restart', METRICS_SYSTEMD_SERVICE])
+        Gtk.main_quit()
 
 METRICS_SYSTEMD_SERVICE = 'eos-metrics-event-recorder.service'
 
