@@ -24,8 +24,18 @@ class MVPCollector():
         else:
             self.OFFLINE_METRICS_DEVICE_PATH= storage_path
 
-    def check_eos_event_recorder_daemon_version(self):
-        print('Not yet implemented')
+    def verify_eos_version(self):
+        f = open("/etc/os-release")
+        for line in f.readlines():
+            if line.startswith("VERSION="):
+                fdot = line.find('=')
+                ldot = line.rfind('.')
+                print(line[fdot+2:ldot])
+                major = line[fdot+2:ldot]
+                if float(major) < 3.9:
+                    print("Please update to latest Endless OS")
+                else:
+                    print("Good to start uploading")
 
     def check_available_space(self):
         print('Not yet implemented')
