@@ -57,7 +57,7 @@ class MVPCollector():
             if os.path.exists(self.OFFLINE_METRICS_DATA_PATH) is False:
                 os.mkdir(self.OFFLINE_METRICS_DATA_PATH)
             else:
-                subprocess.check_output(['sudo', 'rm', '-rf', self.OFFLINE_METRICS_DATA_PATH])
+                subprocess.check_output(['rm', '-rf', self.OFFLINE_METRICS_DATA_PATH])
                 os.mkdir(self.OFFLINE_METRICS_DATA_PATH)
             f.close()
         elif os.path.exists(self.MACHINE_ID_PATH) is True:
@@ -66,7 +66,7 @@ class MVPCollector():
             if os.path.exists(self.OFFLINE_METRICS_DATA_PATH) is False:
                 os.mkdir(self.OFFLINE_METRICS_DATA_PATH)
             else:
-                subprocess.check_output(['sudo', 'rm', '-rf', self.OFFLINE_METRICS_DATA_PATH])
+                subprocess.check_output(['rm', '-rf', self.OFFLINE_METRICS_DATA_PATH])
                 os.mkdir(self.OFFLINE_METRICS_DATA_PATH)
             f.close()
         else:
