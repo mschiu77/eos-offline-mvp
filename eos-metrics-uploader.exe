@@ -1,0 +1,73 @@
+#!/usr/bin/python3
+
+import sys
+import os
+import subprocess
+import shutil
+import time
+
+from metrics import EOSMetrics
+
+class MVPUploader(EOSMetrics):
+
+    def __init__(self, storage_path=None):
+        super().__init__()
+        if storage_path is None:
+            '''
+            TODO: Use dialog window instead
+            '''
+            print('Please assign the metrics data storage path')
+        else:
+            self.offline_metrics_usbdisk_node = storage_path
+        self.offline_metrics_src_dir = 'eos-metrics-data'
+        self.offline_tmp_metrics_dir = '/var/tmp/metrics'
+
+    def copy_metrics_data_and_upload(self):
+        subprocess.check_output(['/usr/bin/systemctl', 'stop', self.systemd_service])
+        srcdir = os.path.join(self.offline_metrics_usbdisk_node, self.offline_metrics_src_dir)
+        for machine_dir in os.listdir(srcdir):
+            os.mkdir(self.offline_tmp_metrics_dir)
+            machine_path = os.path.join(srcdir, machine_dir)
+            for file in os.listdir(machine_path):
+                print(os.path.join(machine_path, file))
+                shutil.copy(os.path.join(machine_path, file), self.offline_tmp_metrics_dir)
+
+            subprocess.Popen(['sudo', 'chown', '-R', 'metrics:metrics', self.offline_tmp_metrics_dir])
+            persistent_cache_dir_arg = '--persistent-cache-directory=' + self.offline_tmp_metrics_dir
+            tracking_id_path_arg = '--tracking-id-file-path=' + self.offline_tmp_metrics_dir + '/tracking-id'
+            #self.daemon = subprocess.Popen(['sudo', '-u', 'metrics', '/lib/eos-event-recorder-daemon/eos-metrics-event-recorder', persistent_cache_dir_arg, tracking_id_path_arg])
+            self.daemon = subprocess.Popen(['sudo', '-u', 'metrics', '/lib/eos-event-recorder-daemon/eos-metrics-event-recorder', persistent_cache_dir_arg])
+
+            time.sleep(10)
+
+            try:
+                subprocess.check_output(['/usr/bin/eos-upload-metrics'])
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError ('Upload Fail. Please check the network connectivity')
+            subprocess.check_output(['sudo', 'killall', '/lib/eos-event-recorder-daemon/eos-metrics-event-recorder'])
+            subprocess.check_output(['sudo', 'rm', '-rf', self.offline_tmp_metrics_dir])
+
+    '''
+    def verify_variants_meta:
+    check if  size and head all zero    // maybe data broken
+    '''
+
+    def __del__(self):
+        '''
+        Remove temporary cache data
+        '''
+        if os.path.exists(self.offline_tmp_metrics_dir) is True:
+            subprocess.check_output(['sudo', 'rm', '-rf', self.offline_tmp_metrics_dir])
+        #subprocess.check_output(['/usr/bin/systemctl', 'start', self.systemd_service])
+
+def main():
+    location = os.path.dirname(os.path.realpath(sys.argv[0]))
+    uploader = MVPUploader(location)
+    if uploader.get_eos_version() > 3.9:
+        print("Please run this command on >= EOS 3.9")
+    else:
+        uploader.copy_metrics_data_and_upload()
+
+if __name__ == '__main__':
+    main()
+

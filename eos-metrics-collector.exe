@@ -1,0 +1,98 @@
+#!/usr/bin/python3
+
+import sys
+import os
+import subprocess
+import shutil
+
+from metrics import EOSMetrics
+
+class MVPCollector(EOSMetrics):
+
+    def __init__(self, storage_path=None):
+        super().__init__()
+        if storage_path is None:
+            '''
+            TODO: Use dialog window instead
+            '''
+            print('Please assign the metrics data storage path')
+        else:
+            self.offline_metrics_usbdisk_node = storage_path
+        self.offline_metrics_dst_dir = 'eos-metrics-data-1'
+        self.disk_free_space_in_bytes = 0
+        self.offline_machine_data_dir = None
+
+    def get_usbdisk_free_space(self):
+        disk_usage = shutil.disk_usage(self.offline_metrics_usbdisk_node)
+        self.disk_free_space_in_bytes = disk_usage.free
+        return disk_usage.free
+
+    def create_folder_for_machine(self):
+        target_dir = os.path.join(self.offline_metrics_usbdisk_node, self.offline_metrics_dst_dir)
+        if os.path.exists(target_dir) is False:
+            os.mkdir(target_dir)
+
+        if os.path.exists(self.tracking_id_path) is True:
+            f = open(self.tracking_id_path)
+            self.offline_machine_data_dir = os.path.join(target_dir, f.read(32))
+            if os.path.exists(self.offline_machine_data_dir) is False:
+                os.mkdir(self.offline_machine_data_dir)
+            else:
+                subprocess.check_output(['rm', '-rf', self.offline_machine_data_dir])
+            os.mkdir(self.offline_machine_data_dir)
+            f.close()
+        elif os.path.exists(self.machine_id_path) is True:
+            f = open(self.machine_id_path)
+            self.offline_machine_data_dir = os.path.join(target_dir, f.read(32))
+            if os.path.exists(self.offline_machine_data_dir) is False:
+                os.mkdir(self.offline_machine_data_dir)
+            else:
+                subprocess.check_output(['rm', '-rf', self.offline_machine_data_dir])
+            os.mkdir(self.offline_machine_data_dir)
+            f.close()
+        else:
+            print('There is no tracking/machine id available')
+
+    def copy_tracking_id(self):
+        print(self.tracking_id_path)
+        if os.path.exists(self.tracking_id_path) is True:
+            # The tracking id file has permission -rwxrwsr-x  which
+            # will raise PermissionError for shutil.copy, use copyfile
+            # instead
+            shutil.copyfile(self.tracking_id_path, os.path.join(self.offline_machine_data_dir, os.path.basename(self.tracking_id_path)))
+        elif os.path.exists(self.machine_id_path) is True:
+            shutil.copyfile(self.machine_id_path, os.path.join(self.offline_machine_data_dir, os.path.basename(self.tracking_id_path)))
+        else:
+            printf('No tracking/machine id file found')
+
+    def copy_metrics_data(self):
+        files = ['boot_offset_metafile', 'network_send_file', 'variants.dat', 'variants.dat.metadata']
+        for file in files:
+            shutil.copyfile(os.path.join(self.metrics_cache_dir, file), os.path.join(self.offline_machine_data_dir, os.path.basename(file)))
+
+    def reset_metrics_data(self):
+        subprocess.check_output(['/usr/bin/systemctl', 'stop', self.systemd_service])
+        files = ['variants.dat', 'variants.dat.metadata']
+        for file in files:
+            target_file = os.path.join(self.metrics_cache_dir, file)
+            subprocess.check_output(['sudo', 'rm', '-f', target_file])
+        subprocess.check_output(['/usr/bin/systemctl', 'start', self.systemd_service])
+    def metrics_copy(self):
+        self.create_folder_for_machine()
+        self.copy_tracking_id()
+        self.copy_metrics_data()
+
+
+def main():
+    location = os.path.dirname(os.path.realpath(sys.argv[0]))
+    collector = MVPCollector(location)
+    if collector.get_usbdisk_free_space() > 10 * 1024 * 1024:
+        collector.metrics_copy()
+        print("Copy Done")
+        collector.reset_metrics_data()
+    else:
+        print("Insufficient free USB space")
+
+if __name__ == '__main__':
+    main()
+
