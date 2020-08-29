@@ -35,6 +35,6 @@ class EOSMetrics():
     configParser
     '''
 
-    '''
-    def get_service_state:
-    '''
+    def get_service_state(self):
+        status = os.system('systemctl is-active --quiet ' + self.systemd_service)
+        return (status)

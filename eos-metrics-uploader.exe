@@ -23,7 +23,8 @@ class MVPUploader(EOSMetrics):
         self.offline_tmp_metrics_dir = '/var/tmp/metrics'
 
     def copy_metrics_data_and_upload(self):
-        subprocess.check_output(['/usr/bin/systemctl', 'stop', self.systemd_service])
+        if (self.get_service_state() == 0):     #active
+            subprocess.check_output(['/usr/bin/systemctl', 'stop', self.systemd_service])
         srcdir = os.path.join(self.offline_metrics_usbdisk_node, self.offline_metrics_src_dir)
         for machine_dir in os.listdir(srcdir):
             os.mkdir(self.offline_tmp_metrics_dir)
@@ -58,7 +59,8 @@ class MVPUploader(EOSMetrics):
         '''
         if os.path.exists(self.offline_tmp_metrics_dir) is True:
             subprocess.check_output(['sudo', 'rm', '-rf', self.offline_tmp_metrics_dir])
-        #subprocess.check_output(['/usr/bin/systemctl', 'start', self.systemd_service])
+        if (self.get_service_state() != 0):
+            subprocess.check_output(['/usr/bin/systemctl', 'start', self.systemd_service])
 
 def main():
     location = os.path.dirname(os.path.realpath(sys.argv[0]))
