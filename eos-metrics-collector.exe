@@ -4,6 +4,7 @@ import sys
 import os
 import subprocess
 import shutil
+import errno
 
 from metrics import EOSMetrics
 
@@ -39,7 +40,7 @@ class MVPCollector(EOSMetrics):
                 os.mkdir(self.offline_machine_data_dir)
             else:
                 subprocess.check_output(['rm', '-rf', self.offline_machine_data_dir])
-            os.mkdir(self.offline_machine_data_dir)
+                os.mkdir(self.offline_machine_data_dir)
             f.close()
         elif os.path.exists(self.machine_id_path) is True:
             f = open(self.machine_id_path)
@@ -48,10 +49,11 @@ class MVPCollector(EOSMetrics):
                 os.mkdir(self.offline_machine_data_dir)
             else:
                 subprocess.check_output(['rm', '-rf', self.offline_machine_data_dir])
-            os.mkdir(self.offline_machine_data_dir)
+                os.mkdir(self.offline_machine_data_dir)
             f.close()
         else:
             print('There is no tracking/machine id available')
+            raise OSError.FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.tracking_id_path)
 
     def copy_tracking_id(self):
         print(self.tracking_id_path)
@@ -64,6 +66,7 @@ class MVPCollector(EOSMetrics):
             shutil.copyfile(self.machine_id_path, os.path.join(self.offline_machine_data_dir, os.path.basename(self.tracking_id_path)))
         else:
             printf('No tracking/machine id file found')
+            raise OSError.FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.tracking_id_path)
 
     def copy_metrics_data(self):
         files = ['boot_offset_metafile', 'network_send_file', 'variants.dat', 'variants.dat.metadata']
@@ -71,26 +74,27 @@ class MVPCollector(EOSMetrics):
             shutil.copyfile(os.path.join(self.metrics_cache_dir, file), os.path.join(self.offline_machine_data_dir, os.path.basename(file)))
 
     def reset_metrics_data(self):
-        if (self.get_service_state() == 0):	#active
-            subprocess.check_output(['/usr/bin/systemctl', 'stop', self.systemd_service])
         files = ['variants.dat', 'variants.dat.metadata']
         for file in files:
             target_file = os.path.join(self.metrics_cache_dir, file)
             subprocess.check_output(['sudo', 'rm', '-f', target_file])
-        subprocess.check_output(['/usr/bin/systemctl', 'start', self.systemd_service])
-    def metrics_copy(self):
+
+    def collect_metrics(self):
+        if (self.get_service_state() == 0):	#active
+            subprocess.check_output(['/usr/bin/systemctl', 'stop', self.systemd_service])
         self.create_folder_for_machine()
         self.copy_tracking_id()
         self.copy_metrics_data()
+        self.reset_metrics_data()
+        subprocess.check_output(['/usr/bin/systemctl', 'start', self.systemd_service])
 
 
 def main():
     location = os.path.dirname(os.path.realpath(sys.argv[0]))
     collector = MVPCollector(location)
     if collector.get_usbdisk_free_space() > 10 * 1024 * 1024:
-        collector.metrics_copy()
-        print("Copy Done")
-        collector.reset_metrics_data()
+        collector.collect_metrics()
+        print("Metrics Collect Done")
     else:
         print("Insufficient free USB space")
 
