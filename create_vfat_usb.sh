@@ -7,7 +7,7 @@ prompt_input()
 {
     echo "
 	 "
-    read -p "Please enter the disk number you want to create for metrics? [1] "
+    read -p "Please enter the disk number you want to create for metrics? [] "
     response="${REPLY,,}" # to lower
     if [[ ! "$response" =~ ^[1-9]$ ]]; then
         echo " Please re-input your selection "
@@ -32,8 +32,34 @@ do
     fi
 done
 
+if [ $USB_DISK_NUM -eq 0 ]; then
+    echo "Please plug in the USB storage device."
+    exit 1
+fi
+
 prompt_input
 
 TARGET_DISK=${DISK[$((USER_CHOICE-1))]}
 
 echo "disk name $TARGET_DISK"
+
+TABLE=$(sfdisk -d "$TARGET_DISK")
+HEADER=$(echo "$TABLE" | grep -v '^/')
+# Remove the last-lba line so that we fill the disk
+HEADER=$(echo "$HEADER" | sed -e '/^last-lba:/d')
+
+# Prepend our partition
+PARTS="start=2048, name=EOSMETRICS, type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
+$PARTS"
+
+echo $HEADER
+
+echo $PARTS
+# Reconstruct the table
+TABLE="$HEADER
+$PARTS"
+
+echo "$TABLE" | sfdisk --force --no-reread "$TARGET_DISK"
+PART=$(sfdisk -d "$TARGET_DISK" | grep 'EOSMETRICS' | cut -f1 -d' ')
+
+mkfs.vfat -n EOSMETRICS "$PART"
