@@ -69,7 +69,7 @@ class MVPCollector(EOSMetrics):
             raise OSError.FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.tracking_id_path)
 
     def copy_metrics_data(self):
-        files = ['boot_offset_metafile', 'network_send_file', 'variants.dat', 'variants.dat.metadata']
+        files = ['boot_offset_metafile', 'local_version_file', 'network_send_file', 'variants.dat', 'variants.dat.metadata']
         for file in files:
             shutil.copyfile(os.path.join(self.metrics_cache_dir, file), os.path.join(self.offline_machine_data_dir, os.path.basename(file)))
 
