@@ -26,8 +26,8 @@ class MVPUploader(EOSMetrics):
         if (self.get_service_state() == 0):     #active
             subprocess.check_output(['/usr/bin/systemctl', 'stop', self.systemd_service])
         srcdir = os.path.join(self.offline_metrics_usbdisk_node, self.offline_metrics_src_dir)
+        os.mkdir(self.offline_tmp_metrics_dir)
         for machine_dir in os.listdir(srcdir):
-            os.mkdir(self.offline_tmp_metrics_dir)
             machine_path = os.path.join(srcdir, machine_dir)
             for file in os.listdir(machine_path):
                 print(os.path.join(machine_path, file))
