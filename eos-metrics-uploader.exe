@@ -30,7 +30,6 @@ class MVPUploader(EOSMetrics):
         for machine_dir in os.listdir(srcdir):
             machine_path = os.path.join(srcdir, machine_dir)
             for file in os.listdir(machine_path):
-                print(os.path.join(machine_path, file))
                 shutil.copy(os.path.join(machine_path, file), self.offline_tmp_metrics_dir)
 
             subprocess.Popen(['sudo', 'chown', '-R', 'metrics:metrics', self.offline_tmp_metrics_dir])
@@ -39,7 +38,10 @@ class MVPUploader(EOSMetrics):
             #self.daemon = subprocess.Popen(['sudo', '-u', 'metrics', '/lib/eos-event-recorder-daemon/eos-metrics-event-recorder', persistent_cache_dir_arg, tracking_id_path_arg])
             self.daemon = subprocess.Popen(['sudo', '-u', 'metrics', '/lib/eos-event-recorder-daemon/eos-metrics-event-recorder', persistent_cache_dir_arg])
 
-            time.sleep(10)
+            while True:
+                time.sleep(1)
+                if self.metrics_proc_exists():
+                    break
 
             try:
                 subprocess.check_output(['/usr/bin/eos-upload-metrics'])
