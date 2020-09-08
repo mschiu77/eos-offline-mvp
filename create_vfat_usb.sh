@@ -42,6 +42,11 @@ prompt_input
 TARGET_DISK=${DISK[$((USER_CHOICE-1))]}
 
 echo "disk name $TARGET_DISK"
+MOUNTPOINT=$(grep "$TARGET_DISK" /proc/mounts | cut -f1 -d' ' | tr '\n' ' ')
+if test -n "$MOUNTPOINT" -a -d "$MOUNTPOINT"
+then
+	umount -f -q $MOUNTPOINT
+fi
 
 TABLE=$(sfdisk -d "$TARGET_DISK")
 HEADER=$(echo "$TABLE" | grep -v '^/')
@@ -63,3 +68,20 @@ echo "$TABLE" | sfdisk --force --no-reread "$TARGET_DISK"
 PART=$(sfdisk -d "$TARGET_DISK" | grep 'EOSMETRICS' | cut -f1 -d' ')
 
 mkfs.vfat -n EOSMETRICS "$PART"
+
+# Give udisks a chance to notice the new partition
+partprobe "$TARGET_DISK"
+udevadm settle
+
+# Try to mount the fat32 partition
+udisksctl mount -b "$PART" --no-user-interaction || exit 1
+# Grab the mount point
+TARGET_MOUNTPOINT=$(grep "$PART" /proc/mounts | cut -f2 -d' ')
+if test -n "$TARGET_MOUNTPOINT" -a -d "$TARGET_MOUNTPOINT"
+then
+  # Copy the script files here.
+  cp /usr/bin/eos-metrics-collector "$TARGET_MOUNTPOINT"/
+  cp /usr/bin/eos-metrics-uploader "$TARGET_MOUNTPOINT"/
+fi
+udisksctl unmount -b "$PART" --no-user-interaction
+sync
