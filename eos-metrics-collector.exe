@@ -19,7 +19,7 @@ class MVPCollector(EOSMetrics):
             print('Please assign the metrics data storage path')
         else:
             self.offline_metrics_usbdisk_node = storage_path
-        self.offline_metrics_dst_dir = 'eos-metrics-data-1'
+        self.offline_metrics_dst_dir = 'eos-metrics-data'
         self.disk_free_space_in_bytes = 0
         self.offline_machine_data_dir = None
 

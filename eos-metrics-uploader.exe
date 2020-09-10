@@ -27,7 +27,6 @@ class MVPUploader(EOSMetrics):
         if (self.get_service_state() == 0):     #active
             subprocess.check_output(['/usr/bin/systemctl', 'stop', self.systemd_service])
         srcdir = os.path.join(self.offline_metrics_usbdisk_node, self.offline_metrics_src_dir)
-        #os.mkdir(self.offline_tmp_metrics_dir)
         for machine_dir in os.listdir(srcdir):
             machine_path = os.path.join(srcdir, machine_dir)
             for file in os.listdir(machine_path):
@@ -36,8 +35,7 @@ class MVPUploader(EOSMetrics):
             subprocess.Popen(['sudo', 'chown', '-R', 'metrics:metrics', self.offline_tmp_metrics_dir])
             persistent_cache_dir_arg = '--persistent-cache-directory=' + self.offline_tmp_metrics_dir
             tracking_id_path_arg = '--tracking-id-file-path=' + self.offline_tmp_metrics_dir + '/tracking-id'
-            #self.daemon = subprocess.Popen(['sudo', '-u', 'metrics', '/lib/eos-event-recorder-daemon/eos-metrics-event-recorder', persistent_cache_dir_arg, tracking_id_path_arg])
-            self.daemon = subprocess.Popen(['sudo', '-u', 'metrics', '/lib/eos-event-recorder-daemon/eos-metrics-event-recorder', persistent_cache_dir_arg])
+            self.daemon = subprocess.Popen(['sudo', '-u', 'metrics', '/lib/eos-event-recorder-daemon/eos-metrics-event-recorder', persistent_cache_dir_arg, tracking_id_path_arg])
 
             while True:
                 time.sleep(1)
@@ -49,11 +47,6 @@ class MVPUploader(EOSMetrics):
             except subprocess.CalledProcessError as e:
                 raise RuntimeError ('Upload Fail. Please check the network connectivity')
             subprocess.check_output(['sudo', 'killall', '/lib/eos-event-recorder-daemon/eos-metrics-event-recorder'])
-
-    '''
-    def verify_variants_meta:
-    check if  size and head all zero    // maybe data broken
-    '''
 
     def __del__(self):
         '''
@@ -67,7 +60,7 @@ class MVPUploader(EOSMetrics):
 def main():
     location = os.path.dirname(os.path.realpath(sys.argv[0]))
     uploader = MVPUploader(location)
-    if uploader.get_eos_version() > 3.9:
+    if uploader.get_eos_version() < 3.9:
         print("Please run this command on >= EOS 3.9")
     else:
         uploader.copy_metrics_data_and_upload()
