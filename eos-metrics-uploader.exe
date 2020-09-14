@@ -21,13 +21,14 @@ class MVPUploader(EOSMetrics):
         else:
             self.offline_metrics_usbdisk_node = storage_path
         self.offline_metrics_src_dir = 'eos-metrics-data'
-        self.offline_tmp_metrics_dir = tempfile.mkdtemp()
+	self.offline_tmp_metrics_dir = ''
 
     def copy_metrics_data_and_upload(self):
         if (self.get_service_state() == 0):     #active
             subprocess.check_output(['/usr/bin/systemctl', 'stop', self.systemd_service])
         srcdir = os.path.join(self.offline_metrics_usbdisk_node, self.offline_metrics_src_dir)
         for machine_dir in os.listdir(srcdir):
+            self.offline_tmp_metrics_dir = tempfile.mkdtemp()
             machine_path = os.path.join(srcdir, machine_dir)
             for file in os.listdir(machine_path):
                 shutil.copy(os.path.join(machine_path, file), self.offline_tmp_metrics_dir)
@@ -47,6 +48,7 @@ class MVPUploader(EOSMetrics):
             except subprocess.CalledProcessError as e:
                 raise RuntimeError ('Upload Fail. Please check the network connectivity')
             subprocess.check_output(['sudo', 'killall', '/lib/eos-event-recorder-daemon/eos-metrics-event-recorder'])
+            subprocess.check_output(['sudo', 'rm', '-rf', self.offline_tmp_metrics_dir])
 
     def __del__(self):
         '''
