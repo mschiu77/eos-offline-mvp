@@ -56,7 +56,6 @@ class MVPCollector(EOSMetrics):
             raise OSError.FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.tracking_id_path)
 
     def copy_tracking_id(self):
-        print(self.tracking_id_path)
         if os.path.exists(self.tracking_id_path) is True:
             # The tracking id file has permission -rwxrwsr-x  which
             # will raise PermissionError for shutil.copy, use copyfile
@@ -69,7 +68,12 @@ class MVPCollector(EOSMetrics):
             raise OSError.FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.tracking_id_path)
 
     def copy_metrics_data(self):
-        files = ['boot_offset_metafile', 'local_version_file', 'network_send_file', 'variants.dat', 'variants.dat.metadata']
+        # Check whether the network_send_file exists or not
+        if os.path.exists(os.path.join(self.metrics_cache_dir, 'network_send_file')) is True:
+            shutil.copyfile(os.path.join(self.metrics_cache_dir, 'network_send_file'), os.path.join(self.offline_machine_data_dir, 'network_send_file'))
+
+        # Copy mandatory files
+        files = ['boot_offset_metafile', 'local_version_file', 'variants.dat', 'variants.dat.metadata']
         for file in files:
             shutil.copyfile(os.path.join(self.metrics_cache_dir, file), os.path.join(self.offline_machine_data_dir, os.path.basename(file)))
 
