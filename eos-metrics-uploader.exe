@@ -38,10 +38,15 @@ class MVPUploader(EOSMetrics):
             tracking_id_path_arg = '--tracking-id-file-path=' + self.offline_tmp_metrics_dir + '/tracking-id'
             self.daemon = subprocess.Popen(['sudo', '-u', 'metrics', '/lib/eos-event-recorder-daemon/eos-metrics-event-recorder', persistent_cache_dir_arg, tracking_id_path_arg])
 
-            while True:
+            timeout = 0
+            while timeout < 5:
                 time.sleep(1)
                 if self.metrics_proc_exists():
                     break
+                timeout = timeout + 1
+
+            if timeout >= 5:
+                raise RuntimeError ('Fail to launch eos-metrics-event-recorder')
 
             try:
                 subprocess.check_output(['/usr/bin/eos-upload-metrics'])
@@ -52,10 +57,13 @@ class MVPUploader(EOSMetrics):
 
     def __del__(self):
         '''
-        Remove temporary cache data
+        Remove temporary cache data, kill the eos-metrics-event-recorder.
+        And restart the service
         '''
-        if os.path.exists(self.offline_tmp_metrics_dir) is True:
-            subprocess.check_output(['sudo', 'rm', '-rf', self.offline_tmp_metrics_dir])
+        if os.path.exists(self.offline_tmp_metrics_dir):
+	        subprocess.check_output(['sudo', 'rm', '-rf', self.offline_tmp_metrics_dir])
+        if self.metrics_proc_exists():
+            subprocess.check_output(['sudo', 'killall', '/lib/eos-event-recorder-daemon/eos-metrics-event-recorder'])
         if (self.get_service_state() != 0):
             subprocess.check_output(['/usr/bin/systemctl', 'start', self.systemd_service])
 
