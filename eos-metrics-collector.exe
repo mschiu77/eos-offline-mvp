@@ -6,19 +6,13 @@ import subprocess
 import shutil
 import errno
 
-from metrics import EOSMetrics
+from metrics import OfflineMetrics
 
-class MVPCollector(EOSMetrics):
+class OfflineMetricsCollector(OfflineMetrics):
 
     def __init__(self, storage_path=None):
         super().__init__()
-        if storage_path is None:
-            '''
-            TODO: Use dialog window instead
-            '''
-            print('Please assign the metrics data storage path')
-        else:
-            self.offline_metrics_usbdisk_node = storage_path
+        self.offline_metrics_usbdisk_node = storage_path
         self.offline_metrics_dst_dir = 'eos-metrics-data'
         self.disk_free_space_in_bytes = 0
         self.offline_machine_data_dir = None
@@ -35,25 +29,19 @@ class MVPCollector(EOSMetrics):
 
         if os.path.exists(self.tracking_id_path) is True:
             f = open(self.tracking_id_path)
-            self.offline_machine_data_dir = os.path.join(target_dir, f.read(32))
-            if os.path.exists(self.offline_machine_data_dir) is False:
-                os.mkdir(self.offline_machine_data_dir)
-            else:
-                subprocess.check_output(['rm', '-rf', self.offline_machine_data_dir])
-                os.mkdir(self.offline_machine_data_dir)
-            f.close()
         elif os.path.exists(self.machine_id_path) is True:
             f = open(self.machine_id_path)
-            self.offline_machine_data_dir = os.path.join(target_dir, f.read(32))
-            if os.path.exists(self.offline_machine_data_dir) is False:
-                os.mkdir(self.offline_machine_data_dir)
-            else:
-                subprocess.check_output(['rm', '-rf', self.offline_machine_data_dir])
-                os.mkdir(self.offline_machine_data_dir)
-            f.close()
         else:
-            print('There is no tracking/machine id available')
-            raise OSError.FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.tracking_id_path)
+            print('No tracking/machine id file found')
+            sys.exit()
+
+        self.offline_machine_data_dir = os.path.join(target_dir, f.read(32))
+        if os.path.exists(self.offline_machine_data_dir) is False:
+            os.mkdir(self.offline_machine_data_dir)
+        else:
+            subprocess.check_output(['rm', '-rf', self.offline_machine_data_dir])
+            os.mkdir(self.offline_machine_data_dir)
+        f.close()
 
     def copy_tracking_id(self):
         if os.path.exists(self.tracking_id_path) is True:
@@ -64,8 +52,8 @@ class MVPCollector(EOSMetrics):
         elif os.path.exists(self.machine_id_path) is True:
             shutil.copyfile(self.machine_id_path, os.path.join(self.offline_machine_data_dir, os.path.basename(self.tracking_id_path)))
         else:
-            printf('No tracking/machine id file found')
-            raise OSError.FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.tracking_id_path)
+            print('No tracking/machine id file found')
+            sys.exit()
 
     def copy_metrics_data(self):
         # Check whether the network_send_file exists or not
@@ -84,7 +72,7 @@ class MVPCollector(EOSMetrics):
             subprocess.check_output(['sudo', 'rm', '-f', target_file])
 
     def collect_metrics(self):
-        if (self.get_service_state() == 0):	#active
+        if (self.is_metrics_service_active()):
             subprocess.check_output(['/usr/bin/systemctl', 'stop', self.systemd_service])
         self.create_folder_for_machine()
         self.copy_tracking_id()
@@ -92,11 +80,19 @@ class MVPCollector(EOSMetrics):
         self.reset_metrics_data()
         subprocess.check_output(['/usr/bin/systemctl', 'start', self.systemd_service])
 
+    def evaluate_metrics_data_size(self):
+        size = 0
+        size += os.path.getsize(self.metrics_cache_dir)
+        if os.path.exists(self.tracking_id_path):
+            size += os.path.getsize(self.tracking_id_path)
+        if os.path.exists(self.machine_id_path):
+            size += os.path.getsize(self.machine_id_path)
+        return size
 
 def main():
     location = os.path.dirname(os.path.realpath(sys.argv[0]))
-    collector = MVPCollector(location)
-    if collector.get_usbdisk_free_space() > 10 * 1024 * 1024:
+    collector = OfflineMetricsCollector(location)
+    if collector.get_usbdisk_free_space() > collector.evaluate_metrics_data_size():
         collector.collect_metrics()
         print("Metrics Collect Done")
     else:

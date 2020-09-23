@@ -3,8 +3,9 @@ import configparser
 import os
 import subprocess
 import re
+from distutils.version import StrictVersion
 
-class EOSMetrics():
+class OfflineMetrics():
     def __init__(self):
         self.metrics_cache_dir = '/var/cache/metrics'
         self.tracking_id_path = '/etc/metrics/tracking-id'
@@ -12,25 +13,18 @@ class EOSMetrics():
         self.systemd_service = 'eos-metrics-event-recorder.service'
         self.metrics_config_file = '/etc/metrics/eos-metrics-permissions.conf'
         self.metrics_proc_name = 'eos-metrics-event-recorder'
-        self.eos_version = float(0)
+        self.eos_version = None
         self.config = configparser.ConfigParser()
         self.config.read(self.metrics_config_file)
 
-    def	get_eos_version(self):
+    def get_eos_version(self):
         f = open("/etc/os-release")
         for line in f.readlines():
             if line.startswith("VERSION="):
                 fdot = line.find('=')
-                ldot = line.rfind('.')
-                major = line[fdot+2:ldot]
+                major = line[fdot+2:-2]
                 self.eos_version = major
-                return float(major)
-
-    def get_upload_enable_config(self):
-        print(self.config.get("global", "uploading_enabled"))
-
-    def get_environment_config(self):
-        print(self.config.get("global", "environment"))
+                return str(major)
 
     def metrics_proc_exists(self):
         ps = subprocess.Popen("ps ax -o pid= -o args= ", shell=True, stdout=subprocess.PIPE)
@@ -47,6 +41,6 @@ class EOSMetrics():
                     return True
             return False
 
-    def get_service_state(self):
+    def is_metrics_service_active(self):
         status = os.system('systemctl is-active --quiet ' + self.systemd_service)
-        return (status)
+        return (status == 0)

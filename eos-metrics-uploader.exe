@@ -6,25 +6,20 @@ import subprocess
 import shutil
 import time
 import tempfile
+from distutils.version import StrictVersion
 
-from metrics import EOSMetrics
+from metrics import OfflineMetrics
 
-class MVPUploader(EOSMetrics):
+class OfflineMetricsUploader(OfflineMetrics):
 
     def __init__(self, storage_path=None):
         super().__init__()
-        if storage_path is None:
-            '''
-            TODO: Use dialog window instead
-            '''
-            print('Please assign the metrics data storage path')
-        else:
-            self.offline_metrics_usbdisk_node = storage_path
+        self.offline_metrics_usbdisk_node = storage_path
         self.offline_metrics_src_dir = 'eos-metrics-data'
         self.offline_tmp_metrics_dir = ''
 
     def copy_metrics_data_and_upload(self):
-        if (self.get_service_state() == 0):     #active
+        if (self.is_metrics_service_active()):
             subprocess.check_output(['/usr/bin/systemctl', 'stop', self.systemd_service])
         srcdir = os.path.join(self.offline_metrics_usbdisk_node, self.offline_metrics_src_dir)
         for machine_dir in os.listdir(srcdir):
@@ -68,14 +63,14 @@ class MVPUploader(EOSMetrics):
 	        subprocess.check_output(['sudo', 'rm', '-rf', self.offline_tmp_metrics_dir])
         if self.metrics_proc_exists():
             subprocess.check_output(['sudo', 'killall', '/lib/eos-event-recorder-daemon/eos-metrics-event-recorder'])
-        if (self.get_service_state() != 0):
+        if (not self.is_metrics_service_active()):
             subprocess.check_output(['/usr/bin/systemctl', 'start', self.systemd_service])
 
 def main():
     location = os.path.dirname(os.path.realpath(sys.argv[0]))
-    uploader = MVPUploader(location)
-    if uploader.get_eos_version() < 3.9:
-        print("Please run this command on >= EOS 3.9")
+    uploader = OfflineMetricsUploader(location)
+    if StrictVersion(uploader.get_eos_version()) < StrictVersion("3.9.0"):
+        print("Please run this command on >= EOS 3.9.0")
     else:
         uploader.copy_metrics_data_and_upload()
         print("All metrics data been successfully uploaded")
